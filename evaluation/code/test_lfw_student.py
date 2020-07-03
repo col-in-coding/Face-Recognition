@@ -11,32 +11,36 @@ def getAccuracy(scores, flags, threshold):
     flags: 配对是正是负
     threshold: 输入阈值
     '''
-    positivef_scores = []
-    nagtivef_scores = []
-    for i in range(len(flags)):
-        if flags[i] == 1:
-            positivef_scores.append(scores[i])
-        else:
-            nagtivef_scores.append(scores[i])
 
-    positivef_scores = np.sort(positivef_scores)
-    nagtivef_scores = np.sort(nagtivef_scores)
+    p = np.sum(scores[flags == 1] > threshold)
+    n = np.sum(scores[flags == -1] < threshold)
+    acc = 1.0 * (p + n) / len(scores)
+    # positivef_scores = []
+    # nagtivef_scores = []
+    # for i in range(len(flags)):
+    #     if flags[i] == 1:
+    #         positivef_scores.append(scores[i])
+    #     else:
+    #         nagtivef_scores.append(scores[i])
 
-    # 正样本对，判断成了错的
-    pos_false = 0
-    while pos_false < len(positivef_scores):
-        if positivef_scores[pos_false] > threshold:
-            break
-        pos_false += 1
-    pos_true = len(positivef_scores) - pos_false
-    # 负样本对，判断成了错的
-    nag_false = 0
-    while nag_false < len(nagtivef_scores):
-        if nagtivef_scores[nag_false] > threshold:
-            break
-        nag_false += 1
+    # positivef_scores = np.sort(positivef_scores)
+    # nagtivef_scores = np.sort(nagtivef_scores)
+
+    # # 正样本对，判断成了错的
+    # pos_false = 0
+    # while pos_false < len(positivef_scores):
+    #     if positivef_scores[pos_false] > threshold:
+    #         break
+    #     pos_false += 1
+    # pos_true = len(positivef_scores) - pos_false
+    # # 负样本对，判断成了错的
+    # nag_false = 0
+    # while nag_false < len(nagtivef_scores):
+    #     if nagtivef_scores[nag_false] > threshold:
+    #         break
+    #     nag_false += 1
     
-    acc = (pos_true + nag_false)/ len(scores)
+    # acc = (pos_true + nag_false)/ len(scores)
     return acc
 
 
@@ -51,55 +55,60 @@ def getThreshold(scores, flags, thrNum):
     accuracys = np.zeros((2 * thrNum + 1, 1))
     thresholds = np.arange(-thrNum, thrNum + 1) * 1.0 / thrNum
     
-    positivef_scores = []
-    nagtivef_scores = []
-    for i in range(len(flags)):
-        if flags[i] == 1:
-            positivef_scores.append(scores[i])
-        else:
-            nagtivef_scores.append(scores[i])
-    
-    positivef_scores = np.sort(positivef_scores)
-    nagtivef_scores = np.sort(nagtivef_scores)
+    for i in range(2 * thrNum + 1):
+        accuracys[i] = getAccuracy(scores, flags, thresholds[i])
+    max_index = np.squeeze(accuracys == np.max(accuracys))
+    best_threshold = np.mean(thresholds[max_index])
 
-    # print(positivef_scores)
-    # print(nagtivef_scores)
+    # positivef_scores = []
+    # nagtivef_scores = []
+    # for i in range(len(flags)):
+    #     if flags[i] == 1:
+    #         positivef_scores.append(scores[i])
+    #     else:
+    #         nagtivef_scores.append(scores[i])
     
-    best_accuracy = 0
-    acceptable_thresholds = []
-    for i in range(len(thresholds)):
-        # print(f"{i}th loop")
-        threshold = thresholds[i]
-        # print(threshold)
-        pos_false = 0
-        while pos_false < len(positivef_scores):
-            if positivef_scores[pos_false] > threshold:
-                break
-            pos_false += 1
-        pos_true = len(positivef_scores) - pos_false
-        # print(len(positivef_scores))
-        # print(pos_false)
+    # positivef_scores = np.sort(positivef_scores)
+    # nagtivef_scores = np.sort(nagtivef_scores)
 
-        nag_false = 0
-        while nag_false < len(nagtivef_scores):
-            if nagtivef_scores[nag_false] > threshold:
-                break
-            nag_false += 1
-        # print(len(nagtivef_scores))
-        # print(nag_false)
-        accuracy = (pos_true + nag_false) / len(scores)
-        if best_accuracy < accuracy:
-            acceptable_thresholds = [threshold]
-            best_accuracy = accuracy
-            print("best", best_accuracy)
-        elif best_accuracy == accuracy:
-            acceptable_thresholds.append(threshold)
-        # else:
-        #     break
+    # # print(positivef_scores)
+    # # print(nagtivef_scores)
+    
+    # best_accuracy = 0
+    # acceptable_thresholds = []
+    # for i in range(len(thresholds)):
+    #     # print(f"{i}th loop")
+    #     threshold = thresholds[i]
+    #     # print(threshold)
+    #     pos_false = 0
+    #     while pos_false < len(positivef_scores):
+    #         if positivef_scores[pos_false] > threshold:
+    #             break
+    #         pos_false += 1
+    #     pos_true = len(positivef_scores) - pos_false
+    #     # print(len(positivef_scores))
+    #     # print(pos_false)
+
+    #     nag_false = 0
+    #     while nag_false < len(nagtivef_scores):
+    #         if nagtivef_scores[nag_false] > threshold:
+    #             break
+    #         nag_false += 1
+    #     # print(len(nagtivef_scores))
+    #     # print(nag_false)
+    #     accuracy = (pos_true + nag_false) / len(scores)
+    #     if best_accuracy < accuracy:
+    #         acceptable_thresholds = [threshold]
+    #         best_accuracy = accuracy
+    #         print("best", best_accuracy)
+    #     elif best_accuracy == accuracy:
+    #         acceptable_thresholds.append(threshold)
+    #     # else:
+    #     #     break
         
-    acceptable_thresholds = np.array(acceptable_thresholds)
-    best_threshold = acceptable_thresholds.mean()
-    print(f"best_threshold: {best_threshold} with accuracy: {best_accuracy}")
+    # acceptable_thresholds = np.array(acceptable_thresholds)
+    # best_threshold = acceptable_thresholds.mean()
+    # print(f"best_threshold: {best_threshold} with accuracy: {best_accuracy}")
     return best_threshold
 
 
