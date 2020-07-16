@@ -6,7 +6,12 @@ import torch.nn as nn
 
 
 def SEResNet18_IR():
-    model = SEResNet_IR(BasicBlock, [2, 1, 2, 2])
+    model = SEResNet_IR(BasicBlock, [2, 2, 2, 2])
+    return model
+
+
+def SEResNet34_IR():
+    model = SEResNet_IR(BasicBlock, [3, 4, 6, 3])
     return model
 
 
@@ -27,38 +32,63 @@ class BasicBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
+        self.bn1 = nn.BatchNorm2d(inplanes)
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3,
-                               stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
                                stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
+        self.prelu = nn.PReLU()
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
+                               stride=stride, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
+
+        if planes == 64:
+            self.globalAvgPool = nn.AvgPool2d(56, stride=1)
+        elif planes == 128:
+            self.globalAvgPool = nn.AvgPool2d(28, stride=1)
+        elif planes == 256:
+            self.globalAvgPool = nn.AvgPool2d(14, stride=1)
+        elif planes == 512:
+            self.globalAvgPool = nn.AvgPool2d(7, stride=1)
+        self.fc1 = nn.Linear(in_features=planes, out_features=round(planes/16))
+        self.fc2 = nn.Linear(in_features=round(planes/16), out_features=planes)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         identity = x
 
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
+        # inproved residual
+        out = self.bn1(x)
+        out = self.conv1(out)
         out = self.bn2(out)
+        out = self.prelu(out)
+        out = self.conv2(out)
+        out = self.bn3(out)
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
+        # inception and expansion
+        original_out = out
+        out = self.globalAvgPool(out)
+        out = out.view(out.size(0), -1)
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = self.fc2(out)
+        out = self.sigmoid(out)
+        out = out.view(out.size(0), out.size(1), 1, 1)
+        out = out * original_out
+
         out += identity
         out = self.relu(out)
-
         return out
 
 
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
-
 
 
 class SEResNet_IR(nn.Module):
@@ -128,7 +158,7 @@ class SEResNet_IR(nn.Module):
 
 if __name__ == "__main__":
     input = torch.Tensor(2, 3, 112, 112)
-    net = SEResNet18_IR()
+    net = SEResNet34_IR()
     print(net)
     x = net(input)
     print(x.shape)
