@@ -1,5 +1,6 @@
 import logging
 import torch
+import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch import optim
@@ -8,12 +9,9 @@ from customDatasets import CASIAWebFace
 from SEResNet_IR import SEResNet34_IR
 from MarginLayer import InnerProduct, CosineMarginProduct
 
-import pdb
-
 # set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# Hyperparameters
+logging.basicConfig(level=logging.DEBUG)
 
 
 if __name__ == "__main__":
@@ -27,8 +25,9 @@ if __name__ == "__main__":
     ])
 
     train_root = \
-        "/home/coin/Documents/face_recognition/hw5/data/"
-    file_list = "/home/coin/Documents/face_recognition/hw5/data_list.txt"
+        "/Users/colin/Github/face_recognition/LossFunction/data/"
+    file_list = \
+        "/Users/colin/Github/face_recognition/LossFunction/data_list.txt"
     trainset = CASIAWebFace(train_root, file_list, transform=transform)
     trainloader = DataLoader(trainset, batch_size=2, shuffle=True,
                              num_workers=1, drop_last=False)
@@ -51,8 +50,7 @@ if __name__ == "__main__":
     scheduler_classi = optim.lr_scheduler.MultiStepLR(optimizer_classi,
                                                       milestones=[20, 35, 45],
                                                       gamma=0.1)
-
-    epochs = 100
+    epochs = 1
     losses = []
     for epoch in range(1, epochs + 1):
         # train model
@@ -62,16 +60,11 @@ if __name__ == "__main__":
         for batch in trainloader:
             imgs, labels = batch[0].to(device), batch[1].to(device)
             feature = net(imgs)
-            output = margin(feature)
-            print(output.shape)
-            # print(labels)
-            loss = criterion_classi(output, labels)
-            print(loss)
-            pdb.set_trace()
+            m = margin(feature)
+            loss = criterion_classi(F.softmax(m), labels)
+            print("loss: ", loss)
             losses.append(loss)
             optimizer_classi.zero_grad()
             loss.backward()
             optimizer_classi.step()
-        print("loss: ", loss)
-        pdb.set_trace()
         scheduler_classi.step()

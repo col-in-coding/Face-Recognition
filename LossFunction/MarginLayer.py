@@ -7,11 +7,10 @@ class InnerProduct(nn.Module):
         super(InnerProduct, self).__init__()
         self.features_in = features_in
         self.features_out = features_out
-        self.weight = nn.Parameter(torch.Tensor(features_out, features_in))
+        self.weight = nn.Parameter(torch.Tensor(features_in, features_out))
 
     def forward(self, x):
-        y = self.weight.t() @ x
-        output = torch.exp(y) / torch.sum(torch.exp(y), axis=1)
+        output = x @ self.weight
         return output
 
 
